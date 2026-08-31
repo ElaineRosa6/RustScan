@@ -124,3 +124,4 @@ fabric.properties
 .idea*
 
 settings.json
+.audit-results-incremental/

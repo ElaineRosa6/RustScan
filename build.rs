@@ -132,10 +132,21 @@ fn ports_v(fp_map: &BTreeMap<i32, String>) -> BTreeMap<i32, Vec<u16>> {
             for segment in port_segments {
                 if segment.contains('-') {
                     let range: Vec<&str> = segment.trim().split('-').collect();
-                    let start = range[0].parse::<u16>().unwrap();
-                    let end = range[1].parse::<u16>().unwrap();
+                    if range.len() != 2 {
+                        println!("Error parsing port range: {segment}");
+                        continue;
+                    }
+                    let (Ok(start), Ok(end)) = (range[0].parse::<u16>(), range[1].parse::<u16>())
+                    else {
+                        println!("Error parsing port range: {segment}");
+                        continue;
+                    };
 
-                    for port in start..end {
+                    if start > end {
+                        println!("Error parsing descending port range: {segment}");
+                        continue;
+                    }
+                    for port in start..=end {
                         port_list.push(port);
                     }
                 } else if !segment.is_empty() {
@@ -152,6 +163,27 @@ fn ports_v(fp_map: &BTreeMap<i32, String>) -> BTreeMap<i32, Vec<u16>> {
     }
 
     pb_linenr
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ports_v_includes_both_range_endpoints() {
+        let mut input = BTreeMap::new();
+        input.insert(1, "udp 100-102 payload".to_string());
+
+        assert_eq!(ports_v(&input).get(&1), Some(&vec![100, 101, 102]));
+    }
+
+    #[test]
+    fn ports_v_ignores_malformed_and_descending_ranges() {
+        let mut input = BTreeMap::new();
+        input.insert(1, "udp 102-100,broken-range-extra payload".to_string());
+
+        assert_eq!(ports_v(&input).get(&1), Some(&Vec::new()));
+    }
 }
 
 /// Parses out the Payloads into a BTreeMap of line numbers mapped to vectors of payload bytes
